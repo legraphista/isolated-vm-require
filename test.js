@@ -58,8 +58,6 @@ jail.setSync('__apply_module_function', new ivm.Reference(function(moduleName,
                                                                    args,
                                                                    potentialCallbackRef) {
 
-  console.log('potential callback?', potentialCallbackRef);
-
   const potentialCallback = potentialCallbackRef ?
     (...args) =>
       potentialCallbackRef.applySync(undefined, args.map(x => new ivm.ExternalCopy(x).copyInto())) :
@@ -152,27 +150,30 @@ isolate.compileScriptSync('(' + (() => {
 
 
 // test
-isolate.compileScriptSync('(' + (() => {
+isolate.compileScriptSync('(' + (async () => {
 
   const dns = requireNative('dns');
 
-  // log('dns is', dns);
-  // log('dns keys', Object.keys(dns));
   log('dns.getServers', dns.getServers());
-  log('dns.lookup', dns.lookup('google.ro', 6, (err, address, family) => log(address, family)));
+  log('dns.lookup', dns.lookup('google.ro', 6, (err, address, family) => log('dns.lookup result:', address, family)));
 
   const fs = requireNative('fs');
 
   const file = './package.json';
   const f1 = fs.readFileSync(file).toString();
-  log('package sync', f1);
+  log('package sync len', f1.length);
 
-  fs.readFile(file, (e, data) => {
-    const f2 = data.toString();
-    log('package async', f2);
+  const f2 = (await new Promise((res, rej) => {
+    fs.readFile(file, (err, data) => {
+      if (err) {
+        return rej(err);
+      }
 
-    log('f1 === f2', f1 === f2);
-  });
+      return res(data);
+    });
+  })).toString();
 
+  log('package async len', f2.length);
+  log('sync === async (file reads)', f1 === f2);
 
 }) + ')()').runSync(context);
