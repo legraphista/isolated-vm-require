@@ -154,11 +154,25 @@ isolate.compileScriptSync('(' + (() => {
 // test
 isolate.compileScriptSync('(' + (() => {
 
-  const _package = requireNative('dns');
+  const dns = requireNative('dns');
 
-  log('dns is', _package);
-  log('dns keys', Object.keys(_package));
-  log('dns.getServers', _package.getServers());
-  log('dns.lookup', _package.lookup('google.ro', 6, (err, address, family) => log(address, family)));
+  // log('dns is', dns);
+  // log('dns keys', Object.keys(dns));
+  log('dns.getServers', dns.getServers());
+  log('dns.lookup', dns.lookup('google.ro', 6, (err, address, family) => log(address, family)));
+
+  const fs = requireNative('fs');
+
+  const file = './package.json';
+  const f1 = fs.readFileSync(file).toString();
+  log('package sync', f1);
+
+  fs.readFile(file, (e, data) => {
+    const f2 = data.toString();
+    log('package async', f2);
+
+    log('f1 === f2', f1 === f2);
+  });
+
 
 }) + ')()').runSync(context);
