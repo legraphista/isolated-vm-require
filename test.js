@@ -53,12 +53,23 @@ packModuleFunctions.pack = (value) => {
 jail.setSync('__require_packed_module', new ivm.Reference(function(moduleName) {
   return new ivm.ExternalCopy(packModuleFunctions(require(moduleName))).copyInto();
 }));
-jail.setSync('__apply_module_function', new ivm.Reference(function(moduleName, trace, args) {
+jail.setSync('__apply_module_function', new ivm.Reference(function(moduleName,
+                                                                   trace,
+                                                                   args,
+                                                                   potentialCallbackRef) {
+
+  console.log('potential callback?', potentialCallbackRef);
+
+  const potentialCallback = potentialCallbackRef ?
+    (...args) =>
+      potentialCallbackRef.applySync(undefined, args.map(x => new ivm.ExternalCopy(x).copyInto())) :
+    undefined;
+
 
   let pointer = require(moduleName);
   trace.forEach(link => pointer = pointer[link]);
 
-  const result = pointer(...args);
+  const result = pointer(...(args.concat(potentialCallback || [])));
 
   return new ivm.ExternalCopy(result).copyInto();
 }));
@@ -75,7 +86,6 @@ isolate.compileScriptSync('(' + (() => {
     log.applySync(undefined, args.map(arg => new ivm.ExternalCopy(arg).copyInto()));
   };
 
-
   let _require_packed_module = __require_packed_module;
   let _apply_module_function = __apply_module_function;
   delete __require_packed_module;
@@ -89,11 +99,21 @@ isolate.compileScriptSync('(' + (() => {
   global.requireNative._bindPackedModule = (moduleName, pack, trace) => {
     if (pack.type === 'function') {
       pack.value = (...args) => {
+        const potentialCallback = typeof args[args.length - 1] === 'function' ?
+          args.pop() :
+          undefined;
+
+        const potentialCallbackRef = potentialCallback ?
+          new ivm.Reference(potentialCallback) :
+          undefined;
+
         return _apply_module_function.applySync(
           undefined,
           [
             moduleName, trace, args
-          ].map(x => new ivm.ExternalCopy(x).copyInto())
+          ]
+            .map(x => new ivm.ExternalCopy(x).copyInto())
+            .concat(potentialCallbackRef || [])
         );
       }
     } else if (pack.type === 'array') {
@@ -134,10 +154,11 @@ isolate.compileScriptSync('(' + (() => {
 // test
 isolate.compileScriptSync('(' + (() => {
 
-  const _package = requireNative('fs');
+  const _package = requireNative('dns');
 
-  log('fs is', _package);
-  log('fs.existsSync', typeof _package.existsSync);
-  log('fs.existsSync(".")', _package.existsSync('.'));
+  log('dns is', _package);
+  log('dns keys', Object.keys(_package));
+  log('dns.getServers', _package.getServers());
+  log('dns.lookup', _package.lookup('google.ro', 6, (err, address, family) => log(address, family)));
 
 }) + ')()').runSync(context);
