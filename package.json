@@ -1,6 +1,6 @@
 {
   "name": "isolate-vm-require",
-  "version": "0.0.0-proto2",
+  "version": "0.0.0-proto3",
   "description": "",
   "main": "index.js",
   "scripts": {},
@@ -11,5 +11,8 @@
   },
   "devDependencies": {
     "uuid": "^3.2.1"
+  },
+  "peerDependencies": {
+    "isolated-vm": "^0.1.5"
   }
 }
